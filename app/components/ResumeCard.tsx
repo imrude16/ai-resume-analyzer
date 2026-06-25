@@ -6,6 +6,11 @@ import {usePuterStore} from "~/lib/puter";
 const ResumeCard = ({ resume: { id, companyName, jobTitle, feedback, imagePath } }: { resume: Resume }) => {
     const { fs } = usePuterStore();
     const [resumeUrl, setResumeUrl] = useState('');
+    const hasValidFeedback =
+        !!feedback &&
+        typeof feedback.overallScore === 'number' &&
+        !!feedback.ATS &&
+        typeof feedback.ATS.score === 'number';
 
     useEffect(() => {
         const loadResume = async () => {
@@ -26,9 +31,11 @@ const ResumeCard = ({ resume: { id, companyName, jobTitle, feedback, imagePath }
                     {jobTitle && <h3 className="text-lg break-words text-gray-500">{jobTitle}</h3>}
                     {!companyName && !jobTitle && <h2 className="!text-black font-bold">Resume</h2>}
                 </div>
-                <div className="flex-shrink-0">
-                    <ScoreCircle score={feedback.overallScore} />
-                </div>
+                {hasValidFeedback && (
+                    <div className="flex-shrink-0">
+                        <ScoreCircle score={feedback.overallScore} />
+                    </div>
+                )}
             </div>
             {resumeUrl && (
                 <div className="gradient-border animate-in fade-in duration-1000">

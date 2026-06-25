@@ -16,7 +16,19 @@ const Resume = () => {
     const [imageUrl, setImageUrl] = useState('');
     const [resumeUrl, setResumeUrl] = useState('');
     const [feedback, setFeedback] = useState<Feedback | null>(null);
+    const [isLoadingResume, setIsLoadingResume] = useState(true);
+    const [resumeError, setResumeError] = useState('');
     const navigate = useNavigate();
+
+    const isValidFeedback = (feedback: unknown): feedback is Feedback => {
+        return (
+            !!feedback &&
+            typeof feedback === 'object' &&
+            typeof (feedback as Feedback).overallScore === 'number' &&
+            !!(feedback as Feedback).ATS &&
+            typeof (feedback as Feedback).ATS.score === 'number'
+        );
+    }
 
     useEffect(() => {
         if(!isLoading && !auth.isAuthenticated) navigate(`/auth?next=/resume/${id}`);
@@ -24,26 +36,50 @@ const Resume = () => {
 
     useEffect(() => {
         const loadResume = async () => {
-            const resume = await kv.get(`resume:${id}`);
+            setIsLoadingResume(true);
+            setResumeError('');
 
-            if(!resume) return;
+            try {
+                const resume = await kv.get(`resume:${id}`);
 
-            const data = JSON.parse(resume);
+                if(!resume) {
+                    setResumeError('Resume analysis was not found.');
+                    return;
+                }
 
-            const resumeBlob = await fs.read(data.resumePath);
-            if(!resumeBlob) return;
+                const data = JSON.parse(resume);
 
-            const pdfBlob = new Blob([resumeBlob], { type: 'application/pdf' });
-            const resumeUrl = URL.createObjectURL(pdfBlob);
-            setResumeUrl(resumeUrl);
+                if (!isValidFeedback(data.feedback)) {
+                    setResumeError('Analysis did not complete for this resume. Please upload it again.');
+                    return;
+                }
 
-            const imageBlob = await fs.read(data.imagePath);
-            if(!imageBlob) return;
-            const imageUrl = URL.createObjectURL(imageBlob);
-            setImageUrl(imageUrl);
+                const resumeBlob = await fs.read(data.resumePath);
+                if(!resumeBlob) {
+                    setResumeError('Resume file could not be loaded.');
+                    return;
+                }
 
-            setFeedback(data.feedback);
-            console.log({resumeUrl, imageUrl, feedback: data.feedback });
+                const pdfBlob = new Blob([resumeBlob], { type: 'application/pdf' });
+                const resumeUrl = URL.createObjectURL(pdfBlob);
+                setResumeUrl(resumeUrl);
+
+                const imageBlob = await fs.read(data.imagePath);
+                if(!imageBlob) {
+                    setResumeError('Resume preview could not be loaded.');
+                    return;
+                }
+                const imageUrl = URL.createObjectURL(imageBlob);
+                setImageUrl(imageUrl);
+
+                setFeedback(data.feedback);
+                console.log({resumeUrl, imageUrl, feedback: data.feedback });
+            } catch (error) {
+                console.error(error);
+                setResumeError('Analysis did not complete for this resume. Please upload it again.');
+            } finally {
+                setIsLoadingResume(false);
+            }
         }
 
         loadResume();
@@ -79,8 +115,17 @@ const Resume = () => {
                             <ATS score={feedback.ATS.score || 0} suggestions={feedback.ATS.tips || []} />
                             <Details feedback={feedback} />
                         </div>
-                    ) : (
+                    ) : isLoadingResume ? (
                         <img src="/images/resume-scan-2.gif" className="w-full" />
+                    ) : (
+                        <div className="flex flex-col gap-4 animate-in fade-in duration-1000">
+                            <p className="text-red-600 font-semibold">
+                                {resumeError || 'Analysis did not complete for this resume. Please upload it again.'}
+                            </p>
+                            <Link to="/upload" className="primary-button w-fit">
+                                Upload Resume Again
+                            </Link>
+                        </div>
                     )}
                 </section>
             </div>

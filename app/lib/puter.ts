@@ -1,5 +1,8 @@
 import { create } from "zustand";
 
+export const FREE_RESUME_ANALYSIS_MODEL =
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free";
+
 declare global {
     interface Window {
         puter: {
@@ -350,7 +353,7 @@ export const usePuterStore = create<PuterStore>((set, get) => {
                     ],
                 },
             ],
-            { model: "claude-3-5-sonnet" }
+            { model: FREE_RESUME_ANALYSIS_MODEL }
         ) as Promise<AIResponse | undefined>;
     };
 

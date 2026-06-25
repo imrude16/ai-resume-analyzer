@@ -18,6 +18,23 @@ export default function Home() {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loadingResumes, setLoadingResumes] = useState(false);
 
+  const isValidResume = (resume: unknown): resume is Resume => {
+    const candidate = resume as Resume;
+
+    return (
+        !!candidate &&
+        typeof candidate === 'object' &&
+        typeof candidate.id === 'string' &&
+        typeof candidate.imagePath === 'string' &&
+        typeof candidate.resumePath === 'string' &&
+        !!candidate.feedback &&
+        typeof candidate.feedback === 'object' &&
+        typeof candidate.feedback.overallScore === 'number' &&
+        !!candidate.feedback.ATS &&
+        typeof candidate.feedback.ATS.score === 'number'
+    );
+  }
+
   useEffect(() => {
     if(!auth.isAuthenticated) navigate('/auth?next=/');
   }, [auth.isAuthenticated])
@@ -28,9 +45,19 @@ export default function Home() {
 
       const resumes = (await kv.list('resume:*', true)) as KVItem[];
 
-      const parsedResumes = resumes?.map((resume) => (
-          JSON.parse(resume.value) as Resume
-      ))
+      const parsedResumes = resumes?.reduce<Resume[]>((validResumes, resume) => {
+        try {
+          const parsedResume = JSON.parse(resume.value);
+
+          if (isValidResume(parsedResume)) {
+            validResumes.push(parsedResume);
+          }
+        } catch (error) {
+          console.warn('Skipping invalid cached resume', error);
+        }
+
+        return validResumes;
+      }, [])
 
       setResumes(parsedResumes || []);
       setLoadingResumes(false);
