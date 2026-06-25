@@ -30,7 +30,28 @@ const Upload = () => {
     }
 
     const getErrorMessage = (error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error);
+        const getStringValue = (value: unknown): string => {
+            if (!value) return '';
+            if (typeof value === 'string') return value;
+            if (value instanceof Error) return value.message;
+            if (typeof value !== 'object') return String(value);
+
+            const record = value as Record<string, unknown>;
+            const directMessage =
+                getStringValue(record.message) ||
+                getStringValue(record.error) ||
+                getStringValue(record.code);
+
+            if (directMessage) return directMessage;
+
+            try {
+                return JSON.stringify(value);
+            } catch {
+                return '';
+            }
+        }
+
+        const message = getStringValue(error);
         const lowerMessage = message.toLowerCase();
 
         if (
@@ -47,6 +68,19 @@ const Upload = () => {
         }
 
         return message || 'Error: Failed to analyze resume';
+    }
+
+    const parseFeedback = (feedbackText: string) => {
+        const trimmedFeedback = feedbackText.trim();
+        const jsonText = trimmedFeedback.startsWith('```')
+            ? trimmedFeedback.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim()
+            : trimmedFeedback;
+
+        try {
+            return JSON.parse(jsonText);
+        } catch (error) {
+            throw new Error('json_parse_failed');
+        }
     }
 
     const handleAnalyze = async ({ companyName, jobTitle, jobDescription, file }: { companyName: string, jobTitle: string, jobDescription: string, file: File  }) => {
@@ -78,7 +112,7 @@ const Upload = () => {
             setStatusText('Analyzing...');
 
             const feedback = await ai.feedback(
-                uploadedFile.path,
+                uploadedImage.path,
                 prepareInstructions({ jobTitle, jobDescription })
             )
             if (!feedback) {
@@ -90,7 +124,7 @@ const Upload = () => {
                 ? feedback.message.content
                 : feedback.message.content[0].text;
 
-            const parsedFeedback = JSON.parse(feedbackText);
+            const parsedFeedback = parseFeedback(feedbackText);
             if (!isValidFeedback(parsedFeedback)) {
                 setErrorText('AI returned an invalid response. Please try again.');
                 return;
