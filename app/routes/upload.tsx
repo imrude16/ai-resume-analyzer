@@ -55,12 +55,19 @@ const Upload = () => {
         const lowerMessage = message.toLowerCase();
 
         if (
+            lowerMessage.includes('all free ai providers') ||
+            lowerMessage.includes('upstream_provider_unavailable')
+        ) {
+            return 'All free AI providers are currently unavailable. Please try again later.';
+        }
+
+        if (
             lowerMessage.includes('model') ||
             lowerMessage.includes('not found') ||
             lowerMessage.includes('unavailable') ||
             lowerMessage.includes('bad_request')
         ) {
-            return 'Free NVIDIA model is unavailable right now. Please try again later.';
+            return 'Free AI model is unavailable right now. Please try again later.';
         }
 
         if (lowerMessage.includes('json')) {

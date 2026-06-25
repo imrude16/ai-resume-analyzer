@@ -1,7 +1,12 @@
 import { create } from "zustand";
 
-export const FREE_RESUME_ANALYSIS_MODEL =
-    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free";
+export const FREE_RESUME_ANALYSIS_MODELS = [
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+    "qwen/qwen3-4b:free",
+    "nvidia/nemotron-nano-9b-v2:free",
+    "liquid/lfm-2.5-1.2b-instruct:free",
+    "google/gemma-3n-e2b-it:free",
+];
 
 declare global {
     interface Window {
@@ -337,24 +342,33 @@ export const usePuterStore = create<PuterStore>((set, get) => {
             return;
         }
 
-        return puter.ai.chat(
-            [
-                {
-                    role: "user",
-                    content: [
-                        {
-                            type: "file",
-                            puter_path: path,
-                        },
-                        {
-                            type: "text",
-                            text: message,
-                        },
-                    ],
-                },
-            ],
-            { model: FREE_RESUME_ANALYSIS_MODEL }
-        ) as Promise<AIResponse | undefined>;
+        const messages: ChatMessage[] = [
+            {
+                role: "user",
+                content: [
+                    {
+                        type: "file",
+                        puter_path: path,
+                    },
+                    {
+                        type: "text",
+                        text: message,
+                    },
+                ],
+            },
+        ];
+
+        for (const model of FREE_RESUME_ANALYSIS_MODELS) {
+            try {
+                return await puter.ai.chat(messages, { model }) as AIResponse | undefined;
+            } catch (error) {
+                console.warn(`Free AI model failed: ${model}`, error);
+            }
+        }
+
+        throw new Error(
+            "All free AI providers are currently unavailable. Please try again later."
+        );
     };
 
     const img2txt = async (image: string | File | Blob, testMode?: boolean) => {
